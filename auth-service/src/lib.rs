@@ -3,7 +3,7 @@ use axum::{routing::post, serve::Serve, Router};
 use tower_http::services::ServeDir;
 
 pub mod routes;
-use routes::{signup, login, logout, verify_2fa, verify_token};
+use routes::{post_signup, login, logout, verify_2fa, verify_token};
 
 // This struct encapsulates our application-related logic.
 pub struct Application {
@@ -18,7 +18,7 @@ impl Application {
 
         let router = Router::new()
         .nest_service("/", ServeDir::new("assets"))
-        .route("/signup", post(signup))
+        .route("/signup", post(post_signup))
         .route("/login", post(login))
         .route("/logout", post(logout))
         .route("/verify-2fa", post(verify_2fa))
