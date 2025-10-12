@@ -4,10 +4,12 @@ use tower_http::services::ServeDir;
 use routes::{signup, login, logout, verify_2fa, verify_token};
 use domain::User;
 use services::HashmapUserStore;
+use app_state::AppState;
 
 pub mod routes;
 pub mod domain;
 pub mod services;
+pub mod app_state;
 
 // This struct encapsulates our application-related logic.
 pub struct Application {
@@ -18,7 +20,7 @@ pub struct Application {
 }
 
 impl Application {
-    pub async fn build(address: &str) -> Result<Self, Box<dyn Error>> {
+    pub async fn build(app_state: AppState, address: &str) -> Result<Self, Box<dyn Error>> {
 
         let router = Router::new()
         .nest_service("/", ServeDir::new("assets"))
@@ -26,7 +28,8 @@ impl Application {
         .route("/login", post(login))
         .route("/logout", post(logout))
         .route("/verify-2fa", post(verify_2fa))
-        .route("/verify-token", post(verify_token));
+        .route("/verify-token", post(verify_token))
+        .with_state(app_state);
 
         let listener = tokio::net::TcpListener::bind(address).await?;
         let address = listener.local_addr()?.to_string();
