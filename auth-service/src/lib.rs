@@ -2,8 +2,6 @@ use std::error::Error;
 use axum::{routing::post, serve::Serve, Router};
 use tower_http::services::ServeDir;
 use routes::{signup, login, logout, verify_2fa, verify_token};
-use domain::User;
-use services::HashmapUserStore;
 use app_state::AppState;
 
 pub mod routes;
