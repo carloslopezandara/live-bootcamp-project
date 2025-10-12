@@ -24,7 +24,7 @@ async fn should_return_422_if_malformed_input() {
     ];
 
     for test_case in test_cases.iter() {
-        let response = app.post_signup(&test_case).await;
+        let response = app.post_signup(test_case).await;
         assert_eq!(
             response.status().as_u16(),
             422,
@@ -32,4 +32,9 @@ async fn should_return_422_if_malformed_input() {
             test_case
         );
     }
+}
+
+#[tokio::test]
+async fn should_return_201_if_valid_input() {
+    todo!()
 }
