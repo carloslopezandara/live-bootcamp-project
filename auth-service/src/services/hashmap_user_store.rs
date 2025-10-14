@@ -21,12 +21,14 @@ impl HashmapUserStore {
     pub fn add_user(&mut self, user: User) -> Result<(), UserStoreError> {
         match self.get_user(&user.email) {
             Ok(_) => Err(UserStoreError::UserAlreadyExists),
-            _ => {
+            Err(UserStoreError::UserNotFound) => {
                 self.users.insert(user.email.clone(), user);
                 Ok(())
             }
+            Err(e) => Err(e), 
         }
     }
+
 
     pub fn get_user(&self, email: &str) -> Result<User, UserStoreError> {
         match self.users.get(email) {
