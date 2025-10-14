@@ -1,4 +1,4 @@
-use auth_service::routes::SignupResponse;
+use auth_service::{routes::SignupResponse, ErrorResponse};
 
 use crate::helpers::{get_random_email, TestApp};
 
@@ -93,6 +93,14 @@ async fn should_return_400_if_invalid_input() {
             "Failed for input: {:?}",
             email
         );
+        assert_eq!(
+            response
+                .json::<ErrorResponse>()
+                .await
+                .expect("Could not deserialize response body to ErrorResponse")
+                .error,
+            "Invalid credentials".to_owned()
+        );
     }
 }
 
@@ -110,4 +118,13 @@ async fn should_return_409_if_email_already_exists() {
     
     let second_response = app.post_signup(&signup_body).await;
     assert_eq!(second_response.status().as_u16(), 409);
+
+    assert_eq!(
+        second_response
+            .json::<ErrorResponse>()
+            .await
+            .expect("Could not deserialize response body to ErrorResponse")
+            .error,
+        "User already exists".to_owned()
+    );
 }
