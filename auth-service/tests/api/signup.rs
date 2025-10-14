@@ -63,3 +63,51 @@ async fn should_return_201_if_valid_input() {
         expected_response
     );
 }
+
+#[tokio::test]
+async fn should_return_400_if_invalid_input() {
+    let app = TestApp::new().await;
+    let invalid_mails = [
+        serde_json::json!({
+            "email": "123carlos.com",
+            "password": "password123",
+            "requires2FA": true
+        }),
+        serde_json::json!({
+            "email": get_random_email(),
+            "password": "short",
+            "requires2FA": true
+        }),
+        serde_json::json!({
+            "email": "random_email.es",
+            "password": "pass123654",
+            "requires2FA": false
+        }),
+    ];
+
+    for email in invalid_mails.iter() {
+        let response = app.post_signup(email).await;
+        assert_eq!(
+            response.status().as_u16(),
+            400,
+            "Failed for input: {:?}",
+            email
+        );
+    }
+}
+
+#[tokio::test]
+async fn should_return_409_if_email_already_exists() {
+    let app = TestApp::new().await;
+    let random_email = get_random_email();
+    let signup_body = serde_json::json!({
+        "email": random_email,
+        "password": "password123",
+        "requires2FA": true
+    });
+    let first_response = app.post_signup(&signup_body).await;
+    assert_eq!(first_response.status().as_u16(), 201);
+    
+    let second_response = app.post_signup(&signup_body).await;
+    assert_eq!(second_response.status().as_u16(), 409);
+}
