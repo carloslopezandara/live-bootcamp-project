@@ -1,14 +1,7 @@
 use std::collections::HashMap;
 
 use crate::domain::User;
-
-#[derive(Debug, PartialEq)]
-pub enum UserStoreError {
-    UserAlreadyExists,
-    UserNotFound,
-    InvalidCredentials,
-    UnexpectedError,
-}
+use crate::domain::{UserStore, UserStoreError};
 
 // a `HashMap`` of email `String`s mapped to `User` objects.
 // Derive the `Default` trait for `HashmapUserStore`.
@@ -17,9 +10,10 @@ pub struct HashmapUserStore {
     users: HashMap<String, User>,
 }
 
-impl HashmapUserStore {
-    pub fn add_user(&mut self, user: User) -> Result<(), UserStoreError> {
-        match self.get_user(&user.email) {
+#[async_trait::async_trait]
+impl UserStore for HashmapUserStore {
+    async fn add_user(&mut self, user: User) -> Result<(), UserStoreError> {
+        match self.get_user(&user.email).await {
             Ok(_) => Err(UserStoreError::UserAlreadyExists),
             Err(UserStoreError::UserNotFound) => {
                 self.users.insert(user.email.clone(), user);
@@ -30,15 +24,15 @@ impl HashmapUserStore {
     }
 
 
-    pub fn get_user(&self, email: &str) -> Result<User, UserStoreError> {
+    async fn get_user(&self, email: &str) -> Result<User, UserStoreError> {
         match self.users.get(email) {
             Some(user) => Ok(user.clone()),
             None => Err(UserStoreError::UserNotFound),
         }
     }
 
-    pub fn validate_user(&self, email: &str, password: &str) -> Result<(), UserStoreError> {
-        match self.get_user(email) {
+    async fn validate_user(&self, email: &str, password: &str) -> Result<(), UserStoreError> {
+        match self.get_user(email).await {
             Ok(user) => {
                 if user.password == password {
                     Ok(())
@@ -64,8 +58,8 @@ mod tests {
             password: "password".to_string(),
             requires_2fa: false,
         };
-        assert_eq!(store.add_user(user.clone()), Ok(()));
-        assert_eq!(store.add_user(user), Err(UserStoreError::UserAlreadyExists));
+        assert_eq!(store.add_user(user.clone()).await, Ok(()));
+        assert_eq!(store.add_user(user).await, Err(UserStoreError::UserAlreadyExists));
     }
 
     #[tokio::test]
@@ -76,9 +70,9 @@ mod tests {
             password: "password".to_string(),
             requires_2fa: false,
         };
-        assert_eq!(store.get_user("test@gmail.com"), Err(UserStoreError::UserNotFound));
-        store.add_user(user.clone()).unwrap();
-        assert_eq!(store.get_user("test@gmail.com"), Ok(user));
+        assert_eq!(store.get_user("test@gmail.com").await, Err(UserStoreError::UserNotFound));
+        store.add_user(user.clone()).await.unwrap();
+        assert_eq!(store.get_user("test@gmail.com").await, Ok(user));
     }
 
     #[tokio::test]
@@ -89,9 +83,9 @@ mod tests {
             password: "password".to_string(),
             requires_2fa: false,
         };
-        assert_eq!(store.validate_user("test@gmail.com", "password"), Err(UserStoreError::UserNotFound));
-        store.add_user(user.clone()).unwrap();
-        assert_eq!(store.validate_user("test@gmail.com", "password"), Ok(()));
-        assert_eq!(store.validate_user("test@gmail.com", "wrongpassword"), Err(UserStoreError::InvalidCredentials));
+        assert_eq!(store.validate_user("test@gmail.com", "password").await, Err(UserStoreError::UserNotFound));
+        store.add_user(user.clone()).await.unwrap();
+        assert_eq!(store.validate_user("test@gmail.com", "password").await, Ok(()));
+        assert_eq!(store.validate_user("test@gmail.com", "wrongpassword").await, Err(UserStoreError::InvalidCredentials));
     }
 }
