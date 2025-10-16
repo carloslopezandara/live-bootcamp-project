@@ -1,3 +1,4 @@
+#[derive(Debug, PartialEq)]
 pub enum AuthAPIError {
     UserAlreadyExists,
     InvalidCredentials,
