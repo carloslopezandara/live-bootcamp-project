@@ -1,6 +1,7 @@
 use validator::validate_length;
 use crate::domain::error::AuthAPIError;
 
+#[derive(Clone, Debug, PartialEq, Hash, Eq)]
 pub struct Password(String);
 
 impl Password {

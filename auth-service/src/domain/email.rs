@@ -1,7 +1,7 @@
 use validator::validate_email;
 use crate::domain::error::AuthAPIError;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Hash, Eq)]
 pub struct Email(String);
 
 impl Email {

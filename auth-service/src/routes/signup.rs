@@ -1,6 +1,7 @@
 use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
 use serde::{Deserialize, Serialize};
 use crate::{app_state::AppState, domain::{AuthAPIError,User}};
+use crate::domain::{Email, Password};
 
 pub async fn signup(
     State(state): State<AppState>,
@@ -9,9 +10,10 @@ pub async fn signup(
     let email = request.email;
     let password = request.password;
 
-    if email.is_empty() || password.is_empty() || !email.contains('@') || password.len() < 8 {
-        return Err(AuthAPIError::InvalidCredentials);
-    }
+    // Update signup route to replace validation logic with calls to Email::parse and Password::parse
+
+    let email = Email::parse(email.clone())?;
+    let password = Password::parse(password.clone())?;
 
     let user = User::new(email, password, request.requires_2fa);
 
