@@ -1,7 +1,6 @@
 use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
 use serde::{Deserialize, Serialize};
-use crate::{app_state::AppState, domain::{AuthAPIError,User}};
-use crate::domain::{Email, Password};
+use crate::{app_state::AppState, domain::{AuthAPIError,User,Email, Password}};
 
 pub async fn signup(
     State(state): State<AppState>,
