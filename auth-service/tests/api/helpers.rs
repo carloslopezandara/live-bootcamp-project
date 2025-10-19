@@ -1,9 +1,12 @@
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use auth_service::{app_state::AppState, services::HashmapUserStore, Application};
+use auth_service::{app_state::AppState, services::HashmapUserStore, utils::constants::test, Application};
 use uuid::Uuid;
+use reqwest::cookie::Jar;
+
 pub struct TestApp {
     pub address: String,
+    pub cookie_jar: Arc<Jar>, // New!
     pub http_client: reqwest::Client,
 }
 
@@ -12,7 +15,7 @@ impl TestApp {
         let user_store = Arc::new(RwLock::new(HashmapUserStore::default()));
         let app_state = AppState { user_store };
 
-        let app = Application::build(app_state, "0.0.0.0:0")
+        let app = Application::build(app_state, test::APP_ADDRESS)
             .await
             .expect("Failed to build app");
         
@@ -22,10 +25,19 @@ impl TestApp {
         // to avoid blocking the main test thread. 
         #[allow(clippy::let_underscore_future)]
         let _ = tokio::spawn(app.run());
-
-        let http_client = reqwest::Client::new();
         
-        TestApp { address, http_client }
+        let cookie_jar = Arc::new(Jar::default());
+
+        let http_client = reqwest::Client::builder()
+            .cookie_provider(cookie_jar.clone())
+            .build()
+            .unwrap();
+
+        Self {
+            address,
+            cookie_jar,
+            http_client,
+        }
     }
 
     pub async fn get_root(&self) -> reqwest::Response {
@@ -60,10 +72,9 @@ impl TestApp {
             .expect("Failed to execute request.")
     }
 
-    pub async fn logout(&self, token: &str) -> reqwest::Response {
+    pub async fn post_logout(&self) -> reqwest::Response {
         self.http_client
             .post(&format!("{}/logout", &self.address))
-            .bearer_auth(token)
             .send()
             .await
             .expect("Failed to log out.")
