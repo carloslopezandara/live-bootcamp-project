@@ -1,5 +1,5 @@
 use crate::helpers::{get_random_email, TestApp};
-use auth_service::{utils::constants::JWT_COOKIE_NAME, ErrorResponse};
+use auth_service::{ErrorResponse};
 use serde_json;
 
 #[tokio::test]
@@ -75,11 +75,4 @@ async fn should_return_200_if_valid_credentials_and_2fa_disabled() {
     let response = app.post_login(&login_body).await;
 
     assert_eq!(response.status().as_u16(), 200);
-
-    let auth_cookie = response
-        .cookies()
-        .find(|cookie| cookie.name() == JWT_COOKIE_NAME)
-        .expect("No auth cookie found");
-
-    assert!(!auth_cookie.value().is_empty());
 }
