@@ -53,9 +53,19 @@ async fn should_return_200_if_valid_jwt_cookie() {
     let login_response = app.post_login(&login_body).await;
     assert_eq!(login_response.status().as_u16(), 200);
 
-    // Now, log out using the JWT cookie
+    // Extract the JWT token from the login response cookies
+    let token = login_response
+        .cookies()
+        .find(|c| c.name() == JWT_COOKIE_NAME)
+        .unwrap()
+        .value().to_string();
+
+    // Now, log out
     let response = app.post_logout().await;
     assert_eq!(response.status().as_u16(), 200);
+
+    let is_banned = app.app_state.banned_token_store.read().await.is_token_banned(&token).await;
+    assert!(is_banned);
 }
 
 #[tokio::test]

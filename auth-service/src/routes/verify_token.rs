@@ -1,11 +1,13 @@
-use axum::{http::StatusCode, response::IntoResponse, Json};
+use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
 use serde::{Deserialize, Serialize};
-use crate::{domain::AuthAPIError, utils::auth::validate_token};
+use crate::{app_state::AppState, domain::AuthAPIError, utils::auth::validate_token};
 
-pub async fn verify_token(Json(request): Json<VerifytokenRequest>,) -> Result<impl IntoResponse, AuthAPIError>  { 
+pub async fn verify_token(
+    State(state): State<AppState>,
+    Json(request): Json<VerifytokenRequest>,) -> Result<impl IntoResponse, AuthAPIError>  { 
     let token = request.token;
-
-    if validate_token(&token).await.is_err() {
+    
+    if validate_token(state.clone(), &token).await.is_err() {
         return Err(AuthAPIError::InvalidToken);
     }
 
