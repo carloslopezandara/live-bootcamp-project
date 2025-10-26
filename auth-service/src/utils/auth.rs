@@ -2,7 +2,7 @@ use axum_extra::extract::cookie::{Cookie, SameSite};
 use chrono::Utc;
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Validation};
 use serde::{Deserialize, Serialize};
-use crate::{app_state::{AppState}, domain::{Email}};
+use crate::{app_state::{BannedTokenStoreType}, domain::{Email}};
 
 use super::constants::{JWT_COOKIE_NAME, JWT_SECRET};
 
@@ -55,10 +55,9 @@ fn generate_auth_token(email: &Email) -> Result<String, GenerateTokenError> {
 }
 
 // Check if JWT auth token is valid by decoding it using the JWT secret
-pub async fn validate_token(app_state: AppState, token: &str) -> Result<Claims, jsonwebtoken::errors::Error> {
+pub async fn validate_token(banned_token_store: BannedTokenStoreType, token: &str) -> Result<Claims, jsonwebtoken::errors::Error> {
     // First, check if the token is in the banned token store
-    let app_state = app_state.banned_token_store.read().await;
-    let banned_token_store = app_state.as_ref();
+    let banned_token_store = banned_token_store.read().await;  
     if banned_token_store.is_token_banned(&token.to_string()).await {
         return Err(jsonwebtoken::errors::Error::from(jsonwebtoken::errors::ErrorKind::InvalidToken));
     }
@@ -132,7 +131,7 @@ mod tests {
         let banned_token_store = Arc::new(RwLock::new(HashsetBannedTokenStore::default()));
         let app_state = AppState { user_store, banned_token_store };
 
-        let result = validate_token(app_state.clone(), &token).await.unwrap();
+        let result = validate_token(app_state.banned_token_store.clone(), &token).await.unwrap();
         assert_eq!(result.sub, "test@example.com");
 
         let exp = Utc::now()
@@ -150,7 +149,7 @@ mod tests {
         let banned_token_store = Arc::new(RwLock::new(HashsetBannedTokenStore::default()));
         let app_state = AppState { user_store, banned_token_store };
 
-        let result = validate_token(app_state.clone(), &token).await;
+        let result = validate_token(app_state.banned_token_store.clone(), &token).await;
         assert!(result.is_err());
     }
 }
