@@ -90,7 +90,7 @@ mod tests {
 
     use tokio::sync::RwLock;
 
-    use crate::{app_state::AppState, services::{HashmapUserStore, HashsetBannedTokenStore}};
+    use crate::{app_state::AppState, services::{HashmapTwoFACodeStore, HashmapUserStore, HashsetBannedTokenStore}};
 
     use super::*;
 
@@ -129,7 +129,8 @@ mod tests {
         let token = generate_auth_token(&email).unwrap();
         let user_store = Arc::new(RwLock::new(HashmapUserStore::default()));
         let banned_token_store = Arc::new(RwLock::new(HashsetBannedTokenStore::default()));
-        let app_state = AppState { user_store, banned_token_store };
+        let two_fa_code_store = Arc::new(RwLock::new(HashmapTwoFACodeStore::default()));
+        let app_state = AppState { user_store, banned_token_store, two_fa_code_store };
 
         let result = validate_token(app_state.banned_token_store.clone(), &token).await.unwrap();
         assert_eq!(result.sub, "test@example.com");
@@ -147,7 +148,8 @@ mod tests {
         let token = "invalid_token".to_owned();
         let user_store = Arc::new(RwLock::new(HashmapUserStore::default()));
         let banned_token_store = Arc::new(RwLock::new(HashsetBannedTokenStore::default()));
-        let app_state = AppState { user_store, banned_token_store };
+        let two_fa_code_store = Arc::new(RwLock::new(HashmapTwoFACodeStore::default()));
+        let app_state = AppState { user_store, banned_token_store, two_fa_code_store };
 
         let result = validate_token(app_state.banned_token_store.clone(), &token).await;
         assert!(result.is_err());
