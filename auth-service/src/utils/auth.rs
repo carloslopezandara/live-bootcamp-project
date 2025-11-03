@@ -90,7 +90,7 @@ mod tests {
 
     use tokio::sync::RwLock;
 
-    use crate::{app_state::AppState, services::{HashmapTwoFACodeStore, HashmapUserStore, HashsetBannedTokenStore, MockEmailClient}};
+    use crate::{app_state::AppState, services::data_stores::{HashmapTwoFACodeStore, HashmapUserStore, HashsetBannedTokenStore, MockEmailClient}};
 
     use super::*;
 

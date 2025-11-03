@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use sqlx::PgPool;
 use tokio::sync::RwLock;
-use auth_service::{Application, app_state::AppState, get_postgres_pool, services::{HashmapTwoFACodeStore, HashmapUserStore, HashsetBannedTokenStore, MockEmailClient}, utils::constants::{DATABASE_URL, prod}};
+use auth_service::{Application, app_state::AppState, get_postgres_pool, services::data_stores::{HashmapTwoFACodeStore, HashmapUserStore, HashsetBannedTokenStore, MockEmailClient}, utils::constants::{DATABASE_URL, prod}};
 
 #[tokio::main]
 async fn main() {
