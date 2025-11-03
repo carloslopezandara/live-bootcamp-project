@@ -15,7 +15,9 @@ use app_state::AppState;
 
 pub mod routes;
 pub mod domain;
-pub mod services;
+pub mod services {
+    pub mod data_stores;
+}
 pub mod app_state;
 pub mod utils;
 

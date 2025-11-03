@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use auth_service::{app_state::{AppState, BannedTokenStoreType, TwoFACodeStoreType}, services::{HashmapTwoFACodeStore, HashmapUserStore, HashsetBannedTokenStore, MockEmailClient}, utils::constants::test, Application};
+use auth_service::{app_state::{AppState, BannedTokenStoreType, TwoFACodeStoreType}, services::data_stores::{HashmapTwoFACodeStore, HashmapUserStore, HashsetBannedTokenStore, MockEmailClient}, utils::constants::test, Application};
 use uuid::Uuid;
 use reqwest::cookie::Jar;
 
