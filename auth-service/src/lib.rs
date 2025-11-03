@@ -8,6 +8,7 @@ use axum::{
 };
 use domain::AuthAPIError;
 use serde::{Deserialize, Serialize};
+use sqlx::{PgPool, postgres::PgPoolOptions};
 use tower_http::{cors::CorsLayer, services::ServeDir};
 use routes::{signup, login, logout, verify_2fa, verify_token};
 use app_state::AppState;
@@ -86,3 +87,7 @@ impl IntoResponse for AuthAPIError {
     }
 }
 
+pub async fn get_postgres_pool(url: &str) -> Result<PgPool, sqlx::Error> {
+    // Create a new PostgreSQL connection pool
+    PgPoolOptions::new().max_connections(5).connect(url).await
+}
