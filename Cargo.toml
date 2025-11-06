@@ -1,0 +1,6 @@
+[workspace]
+members = [
+    "auth-service",
+    "app-service",
+    "test_macros"
+]

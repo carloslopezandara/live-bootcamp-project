@@ -1,7 +1,7 @@
-use std::sync::Arc;
-use sqlx::{PgPool, postgres::PgPoolOptions, Executor};
+use std::{str::FromStr, sync::Arc};
+use sqlx::{Connection, Executor, PgConnection, PgPool, postgres::{PgConnectOptions, PgPoolOptions}};
 use tokio::sync::RwLock;
-use auth_service::{Application, app_state::{AppState, BannedTokenStoreType, TwoFACodeStoreType}, get_postgres_pool, services::data_stores::{HashmapTwoFACodeStore, HashsetBannedTokenStore, MockEmailClient, PostgresUserStore}, utils::constants::{DATABASE_URL, test}};
+use auth_service::{Application, app_state::{AppState, BannedTokenStoreType, TwoFACodeStoreType}, get_postgres_pool, get_redis_client, services::data_stores::{MockEmailClient, PostgresUserStore, RedisBannedTokenStore, RedisTwoFACodeStore, }, utils::constants::{DATABASE_URL, REDIS_HOST_NAME, test}};
 use uuid::Uuid;
 use reqwest::cookie::Jar;
 
@@ -11,14 +11,25 @@ pub struct TestApp {
     pub banned_token_store: BannedTokenStoreType,
     pub two_fa_code_store: TwoFACodeStoreType,
     pub http_client: reqwest::Client,
+    pub db_name: String,
+    pub clean_up_called: bool,
+}
+
+impl Drop for TestApp {
+    fn drop(&mut self) {
+        if !self.clean_up_called {
+            panic!("TestApp was dropped without calling clean_up");
+        }
+    }
 }
 
 impl TestApp {
     pub async fn new() -> Self {
         let pg_pool = configure_postgresql().await;
+        let db_name = pg_pool.connect_options().get_database().unwrap().to_string();
         let user_store = Arc::new(RwLock::new(PostgresUserStore::new(pg_pool)));
-        let banned_token_store = Arc::new(RwLock::new(HashsetBannedTokenStore::default()));
-        let two_fa_code_store = Arc::new(RwLock::new(HashmapTwoFACodeStore::default()));
+        let banned_token_store = Arc::new(RwLock::new(RedisBannedTokenStore::new(Arc::new(RwLock::new(configure_redis())))));
+        let two_fa_code_store = Arc::new(RwLock::new(RedisTwoFACodeStore::new(Arc::new(RwLock::new(configure_redis())))));
         let email_client = Arc::new(RwLock::new(MockEmailClient));
         let app_state = AppState::new(user_store, banned_token_store.clone(), two_fa_code_store.clone(), email_client.clone());
 
@@ -46,6 +57,8 @@ impl TestApp {
             banned_token_store,
             two_fa_code_store,
             http_client,
+            db_name,
+            clean_up_called: false,
         }
     }
 
@@ -113,6 +126,14 @@ impl TestApp {
             .expect("Failed to execute request.")
     }
 
+// Implement a clean_up method on the TestApp struct which calls the delete_database helper function.
+// NOTE: You will have to update TestApp to store the test database name.
+
+    pub async fn clean_up(&mut self) {
+        delete_database(&self.db_name).await;
+        self.clean_up_called = true;
+    }
+
 }
 
 pub fn get_random_email() -> String {
@@ -162,4 +183,45 @@ async fn configure_database(db_conn_string: &str, db_name: &str) {
         .run(&connection)
         .await
         .expect("Failed to migrate the database");
+}
+
+async fn delete_database(db_name: &str) {
+    let postgresql_conn_url: String = DATABASE_URL.to_owned();
+
+    let connection_options = PgConnectOptions::from_str(&postgresql_conn_url)
+        .expect("Failed to parse PostgreSQL connection string");
+
+    let mut connection = PgConnection::connect_with(&connection_options)
+        .await
+        .expect("Failed to connect to Postgres");
+
+    // Kill any active connections to the database
+    connection
+        .execute(
+            format!(
+                r#"
+                SELECT pg_terminate_backend(pg_stat_activity.pid)
+                FROM pg_stat_activity
+                WHERE pg_stat_activity.datname = '{}'
+                  AND pid <> pg_backend_pid();
+        "#,
+                db_name
+            )
+            .as_str(),
+        )
+        .await
+        .expect("Failed to drop the database.");
+
+    // Drop the database
+    connection
+        .execute(format!(r#"DROP DATABASE "{}";"#, db_name).as_str())
+        .await
+        .expect("Failed to drop the database.");
+}
+
+fn configure_redis() -> redis::Connection {
+    get_redis_client(REDIS_HOST_NAME.to_owned())
+        .expect("Failed to get Redis client")
+        .get_connection()
+        .expect("Failed to get Redis connection")
 }

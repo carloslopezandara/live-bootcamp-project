@@ -1,8 +1,11 @@
 use crate::helpers::TestApp;
+use test_macros::auto_cleanup;
 // Tokio's test macro is used to run the test in an async environment
+
+#[auto_cleanup]
 #[tokio::test]
 async fn root_returns_auth_ui() {
-    let app = TestApp::new().await;
+    let mut app = TestApp::new().await;
 
     let response = app.get_root().await;
 

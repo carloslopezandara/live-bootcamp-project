@@ -24,8 +24,9 @@ impl BannedTokenStore for HashsetBannedTokenStore {
         Ok(())
     }
 
-    async fn is_token_banned(&self, token: &String) -> bool {
-        self.tokens.contains(token)
+    async fn is_token_banned(&self, token: &String) -> Result<bool, BannedTokenStoreError> {
+        // For an in-memory HashSet store this operation cannot fail, so return Ok
+        Ok(self.tokens.contains(token))
     }
 
     fn as_ref(&self) -> &dyn BannedTokenStore {
@@ -45,5 +46,5 @@ async fn test_banned_token_store() {
     assert_eq!(store.store_token(token.clone()).await, Err(BannedTokenStoreError::TokenAlreadyExists));
 
     // Test checking if the token is banned
-    assert!(store.is_token_banned(&token).await);
+    assert!(store.is_token_banned(&token).await.unwrap());
 }

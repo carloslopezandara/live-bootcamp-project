@@ -1,9 +1,11 @@
 use auth_service::{domain::{Email}, routes::TwoFactorAuthResponse, utils::constants::JWT_COOKIE_NAME,};
+use test_macros::auto_cleanup;
 use crate::helpers::{get_random_email, TestApp};
 
+#[auto_cleanup]
 #[tokio::test]
 async fn should_return_422_if_malformed_input() {
-    let app = TestApp::new().await;
+    let mut app = TestApp::new().await;
 
     let random_email = Email::parse(get_random_email()).unwrap();
 
@@ -45,9 +47,10 @@ async fn should_return_422_if_malformed_input() {
     assert_eq!(response.status().as_u16(), 422);
 }
 
+#[auto_cleanup]
 #[tokio::test]
 async fn should_return_400_if_invalid_input() {
-    let app = TestApp::new().await;
+    let mut app = TestApp::new().await;
     
     let random_email = Email::parse(get_random_email()).unwrap();
 
@@ -90,9 +93,10 @@ async fn should_return_400_if_invalid_input() {
     assert_eq!(response.status().as_u16(), 400);
 }
 
+#[auto_cleanup]
 #[tokio::test]
 async fn should_return_401_if_incorrect_credentials() {
-    let app = TestApp::new().await;
+    let mut app = TestApp::new().await;
     // Call verify_2fa with an email/loginAttemptId/2FACode combo that doesn't exist in the store. This should return a 401.
     
     let random_email = Email::parse(get_random_email()).unwrap();
@@ -136,11 +140,12 @@ async fn should_return_401_if_incorrect_credentials() {
     assert_eq!(response.status().as_u16(), 401);
 }
 
+#[auto_cleanup]
 #[tokio::test]
 async fn should_return_401_if_old_code() {
-    // Call login twice. Then, attempt to call verify-fa with the 2FA code from the first login requet. This should fail. 
-    let app = TestApp::new().await;
-    
+    // Call login twice. Then, attempt to call verify-fa with the 2FA code from the first login requet. This should fail.
+    let mut app = TestApp::new().await;
+
     let random_email = Email::parse(get_random_email()).unwrap();
 
     let signup_body = serde_json::json!({
@@ -191,9 +196,10 @@ async fn should_return_401_if_old_code() {
     assert_eq!(response.status().as_u16(), 401);
 }
 
+#[auto_cleanup]
 #[tokio::test]
 async fn should_return_200_if_correct_code() {
-    let app = TestApp::new().await;
+    let mut app = TestApp::new().await;
     let random_email = Email::parse(get_random_email()).unwrap();
     let signup_body = serde_json::json!({
         "email": random_email.as_ref(),
@@ -232,9 +238,10 @@ async fn should_return_200_if_correct_code() {
     assert!(!cookies.is_empty());
 }
 
+#[auto_cleanup]
 #[tokio::test]
 async fn should_return_401_if_same_code_twice() {    
-    let app = TestApp::new().await;
+    let mut app = TestApp::new().await;
     let random_email = Email::parse(get_random_email()).unwrap();
     let signup_body = serde_json::json!({
         "email": random_email.as_ref(),
