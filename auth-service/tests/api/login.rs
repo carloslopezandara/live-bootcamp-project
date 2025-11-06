@@ -5,10 +5,12 @@ use auth_service::{
     domain::{Email},
     routes::TwoFactorAuthResponse,
 };
+use test_macros::auto_cleanup;
 
+#[auto_cleanup]
 #[tokio::test]
 async fn should_return_422_if_malformed_credentials() {
-    let app = TestApp::new().await;
+    let mut app = TestApp::new().await;
     let body = serde_json::json!({
         "mail": "not-an-email",
         "pass": "string123"
@@ -17,9 +19,10 @@ async fn should_return_422_if_malformed_credentials() {
     assert_eq!(response.status().as_u16(), 422);
 }
 
+#[auto_cleanup]
 #[tokio::test]
 async fn should_return_400_if_invalid_input() {
-    let app = TestApp::new().await;
+    let mut app = TestApp::new().await;
     let body = serde_json::json!({
         "email": "not-an-email",
         "password": "string123"
@@ -35,11 +38,12 @@ async fn should_return_400_if_invalid_input() {
     ;
 }
 
+#[auto_cleanup]
 #[tokio::test]
 async fn should_return_401_if_incorrect_credentials() {
     // Call the log-in route with incorrect credentials and assert
     // that a 401 HTTP status code is returned along with the appropriate error message.     
-    let app = TestApp::new().await;
+    let mut app = TestApp::new().await;
     let body = serde_json::json!({
         "email": "validmail@gmail.com",
         "password": "rightpassword"
@@ -55,9 +59,10 @@ async fn should_return_401_if_incorrect_credentials() {
     ;
 }
 
+#[auto_cleanup]
 #[tokio::test]
 async fn should_return_200_if_valid_credentials_and_2fa_disabled() {
-    let app = TestApp::new().await;
+    let mut app = TestApp::new().await;
 
     let random_email = get_random_email();
 
@@ -81,9 +86,10 @@ async fn should_return_200_if_valid_credentials_and_2fa_disabled() {
     assert_eq!(response.status().as_u16(), 200);
 }
 
+#[auto_cleanup]
 #[tokio::test]
 async fn should_return_206_if_valid_credentials_and_2fa_enabled() {
-    let app = TestApp::new().await;
+    let mut app = TestApp::new().await;
 
     let random_email = Email::parse(get_random_email()).unwrap();
 

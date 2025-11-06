@@ -1,10 +1,12 @@
 use auth_service::{utils::constants::JWT_COOKIE_NAME, ErrorResponse};
 use reqwest::Url;
+use test_macros::auto_cleanup;
 use crate::helpers::TestApp;
 
+#[auto_cleanup]
 #[tokio::test]
 async fn should_return_400_if_jwt_cookie_missing() {
-    let app = TestApp::new().await;
+    let mut app = TestApp::new().await;
 
     let response = app.post_logout().await;
     assert_eq!(response.status().as_u16(), 400);
@@ -13,12 +15,13 @@ async fn should_return_400_if_jwt_cookie_missing() {
         .await
         .expect("Could not deserialize response body to ErrorResponse")
         .error,
-        "Missing token".to_owned())
+        "Missing token".to_owned());
 }
 
+#[auto_cleanup]
 #[tokio::test]
 async fn should_return_401_if_invalid_token() {
-    let app = TestApp::new().await;
+    let mut app = TestApp::new().await;
 
     // add invalid cookie
     app.cookie_jar.add_cookie_str(
@@ -33,10 +36,10 @@ async fn should_return_401_if_invalid_token() {
     assert_eq!(response.status().as_u16(), 401);
 }
 
-
+#[auto_cleanup]
 #[tokio::test]
 async fn should_return_200_if_valid_jwt_cookie() {
-    let app = TestApp::new().await;
+    let mut app = TestApp::new().await;
     // First, sign up a new user
     let signup_body = serde_json::json!({
         "email": "user@example.com",
@@ -64,13 +67,14 @@ async fn should_return_200_if_valid_jwt_cookie() {
     let response = app.post_logout().await;
     assert_eq!(response.status().as_u16(), 200);
 
-    let is_banned = app.banned_token_store.read().await.is_token_banned(&token).await;
+    let is_banned = app.banned_token_store.read().await.is_token_banned(&token).await.unwrap();
     assert!(is_banned);
 }
 
+#[auto_cleanup]
 #[tokio::test]
 async fn should_return_400_if_logout_called_twice_in_a_row() {
-    let app = TestApp::new().await;
+    let mut app = TestApp::new().await;
     // First, sign up a new user
     let signup_body = serde_json::json!({
         "email": "user2@gmail.com",

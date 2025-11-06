@@ -30,6 +30,7 @@ pub async fn logout(
     match banned_token_store.store_token(token).await {
         Ok(_) => (),
         Err(BannedTokenStoreError::TokenAlreadyExists) => return (jar, Err(AuthAPIError::InvalidToken)),
+        Err(BannedTokenStoreError::UnexpectedError) => return (jar, Err(AuthAPIError::UnexpectedError)),
     }    
 
     let jar = jar.remove(JWT_COOKIE_NAME);    

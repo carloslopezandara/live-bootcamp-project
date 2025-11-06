@@ -1,9 +1,11 @@
 use auth_service::{utils::constants::JWT_COOKIE_NAME, ErrorResponse};
+use test_macros::auto_cleanup;
 use crate::helpers::{get_random_email, TestApp};
 
+#[auto_cleanup]
 #[tokio::test]
 async fn should_return_422_if_malformed_input() {
-    let app = TestApp::new().await;
+    let mut app = TestApp::new().await;
     let response = app
         .post_verify_token(&serde_json::json!({
             "invalid_field": "some_value"
@@ -12,9 +14,10 @@ async fn should_return_422_if_malformed_input() {
     assert_eq!(response.status(), 422);
 }
 
+#[auto_cleanup]
 #[tokio::test]
 async fn should_return_200_valid_token() {
-    let app = TestApp::new().await;
+    let mut app = TestApp::new().await;
     let random_email = get_random_email();
     let signup_body = serde_json::json!({
         "email": random_email,
@@ -45,9 +48,10 @@ async fn should_return_200_valid_token() {
     assert_eq!(response.status().as_u16(), 200);
 }
 
+#[auto_cleanup]
 #[tokio::test]
 async fn should_return_401_if_invalid_token() {
-    let app = TestApp::new().await;
+    let mut app = TestApp::new().await;
     let random_email = get_random_email();
     let signup_body = serde_json::json!({
         "email": random_email,
@@ -75,12 +79,13 @@ async fn should_return_401_if_invalid_token() {
         .await
         .expect("Could not deserialize response body to ErrorResponse")
         .error,
-        "Invalid token".to_owned())
+        "Invalid token".to_owned());
 }
 
+#[auto_cleanup]
 #[tokio::test]
 async fn should_return_401_if_banned_token() {
-    let app = TestApp::new().await;
+    let mut app = TestApp::new().await;
     let random_email = get_random_email();
     let signup_body = serde_json::json!({
         "email": random_email,
@@ -120,5 +125,5 @@ async fn should_return_401_if_banned_token() {
         .await
         .expect("Could not deserialize response body to ErrorResponse")
         .error,
-        "Invalid token".to_owned())
+        "Invalid token".to_owned());
 }
