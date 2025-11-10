@@ -2,7 +2,7 @@ use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
 use serde::{Deserialize, Serialize};
 use crate::{app_state::AppState, domain::{AuthAPIError,User,Email, Password}};
 
-#[tracing::instrument(name = "Signup", skip_all, err(Debug))] // New!
+#[tracing::instrument(name = "Signup", skip_all)] // Updated
 pub async fn signup(
     State(state): State<AppState>,
     Json(request): Json<SignupRequest>,
@@ -25,7 +25,7 @@ pub async fn signup(
 
     if let Err(e) = user_store.add_user(user.clone()).await {
         println!("Error adding user: {:?}", e);
-        return Err(AuthAPIError::UnexpectedError);
+        return Err(AuthAPIError::UnexpectedError(e.into())); // Updated!
     }
 
     let response = Json(SignupResponse {

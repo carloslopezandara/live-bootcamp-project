@@ -9,7 +9,8 @@ use auth_service::{Application, app_state::AppState, get_postgres_pool, get_redi
 
 #[tokio::main]
 async fn main() {
-    init_tracing();
+    init_tracing().expect("Failed to initialize tracing"); // Updated!
+    color_eyre::install().expect("Failed to install color_eyre"); // New!
     let pg_pool = configure_postgresql().await;
     let user_store = Arc::new(RwLock::new(PostgresUserStore::new(pg_pool)));
     let banned_token_store = Arc::new(RwLock::new(RedisBannedTokenStore::new(Arc::new(RwLock::new(configure_redis())))));
