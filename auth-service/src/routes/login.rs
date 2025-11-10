@@ -9,17 +9,18 @@ use crate::{
     utils::auth::generate_auth_cookie,
 };
 
+#[tracing::instrument(name = "Login", skip_all)]
 pub async fn login(
     State(state): State<AppState>,
     jar: CookieJar, // New!
     Json(request): Json<LoginRequest>,
 ) -> (CookieJar, Result<impl IntoResponse, AuthAPIError>) {
     let email = match Email::parse(request.email.clone()) {
-        Err(error) => return (jar, Err(error)),
+        Err(error) => return (jar, Err(AuthAPIError::UnexpectedError(error))),
         Ok(email) => email,
     };
     let password = match Password::parse(request.password.clone()){
-        Err(error) => return (jar, Err(error)),
+        Err(error) => return (jar, Err(AuthAPIError::UnexpectedError(error))),
         Ok(password) => password,
     };    
     let user_store = state.user_store.read().await;
@@ -64,7 +65,7 @@ pub struct TwoFactorAuthResponse {
     pub login_attempt_id: String,
 }
 
-// New!
+#[tracing::instrument(name = "Handle 2FA", skip_all)]
 async fn handle_2fa(
     email: &Email, // New!
     state: &AppState, // New!
@@ -77,21 +78,21 @@ async fn handle_2fa(
     let login_attempt_id = LoginAttemptId::default();
     let two_fa_code = TwoFACode::default();
 
-    // TODO: Store the ID and code in our 2FA code store. Return `AuthAPIError::UnexpectedError` if the operation fails
-    let mut two_fa_code_store = state.two_fa_code_store.write().await;
-    match two_fa_code_store
+    // Updated!
+    if let Err(e) = state
+        .two_fa_code_store
+        .write()
+        .await
         .add_code(email.clone(), login_attempt_id.clone(), two_fa_code.clone())
         .await
     {
-        Err(_) => return (jar, Err(AuthAPIError::UnexpectedError)),
-        Ok(_) => (),
-    };
-
-    // TODO: send 2FA code via the email client. Return `AuthAPIError::UnexpectedError` if the operation fails.
+        return (jar, Err(AuthAPIError::UnexpectedError(e.into())));
+    }
+    
     let email_client = state.email_client.read().await;
     let body = format!("Here is your 2FA code: {}, don't share it with anyone.", two_fa_code.as_ref());
     match email_client.send_email(email, "2FA Code", &body).await {
-        Err(_) => return (jar, Err(AuthAPIError::UnexpectedError)),
+        Err(e) => return (jar, Err(AuthAPIError::UnexpectedError(e))),
         Ok(_) => (),
     };
 
@@ -104,7 +105,7 @@ async fn handle_2fa(
     (jar, Ok((StatusCode::PARTIAL_CONTENT, response)))
 }
 
-// New!
+#[tracing::instrument(name = "Handle No 2FA", skip_all)]
 async fn handle_no_2fa(
     email: &Email,
     jar: CookieJar,
@@ -113,7 +114,7 @@ async fn handle_no_2fa(
     Result<(StatusCode, Json<LoginResponse>), AuthAPIError>,
 ) {
     let auth_cookie = match generate_auth_cookie(email) {
-        Err(_) => return (jar, Err(AuthAPIError::UnexpectedError)),
+        Err(e) => return (jar, Err(AuthAPIError::UnexpectedError(e))), // Updated!
         Ok(cookie) => cookie,
     };
     let updated_jar = jar.add(auth_cookie);

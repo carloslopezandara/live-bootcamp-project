@@ -1,13 +1,13 @@
 use std::collections::HashMap;
 
+use color_eyre::eyre;
+
 use crate::domain::{LoginAttemptId, TwoFACode, TwoFACodeStore, TwoFACodeStoreError, Email};
 
 #[derive(Default)]
 pub struct HashmapTwoFACodeStore {
     codes: HashMap<Email, (LoginAttemptId, TwoFACode)>,
 }
-
-// TODO: implement TwoFACodeStore for HashmapTwoFACodeStore
 
 #[async_trait::async_trait]
 impl TwoFACodeStore for HashmapTwoFACodeStore {
@@ -18,7 +18,7 @@ impl TwoFACodeStore for HashmapTwoFACodeStore {
         code: TwoFACode,
     ) -> Result<(), TwoFACodeStoreError> {
         match self.get_code(&email).await {
-            Ok(_) => Err(TwoFACodeStoreError::UnexpectedError),
+            Ok(_) => Err(TwoFACodeStoreError::UnexpectedError(eyre::eyre!("Code already exists"))),
             Err(TwoFACodeStoreError::LoginAttemptIdNotFound) => {
                 self.codes.insert(email, (login_attempt_id, code));
                 Ok(())

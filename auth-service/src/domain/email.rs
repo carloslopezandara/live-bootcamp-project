@@ -1,15 +1,16 @@
 use validator::validate_email;
 use crate::domain::error::AuthAPIError;
+use color_eyre::eyre::Result;
 
 #[derive(Clone, Debug, PartialEq, Hash, Eq)]
 pub struct Email(String);
 
 impl Email {
-    pub fn parse(email: String) -> Result<Self, AuthAPIError> {
+    pub fn parse(email: String) -> Result<Self> {
         if validate_email(&email) {
             Ok(Self(email))
         } else {
-            Err(AuthAPIError::InvalidCredentials)
+            Err(AuthAPIError::InvalidCredentials.into())
         }
     }
 

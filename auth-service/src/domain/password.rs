@@ -1,15 +1,16 @@
 use validator::validate_length;
 use crate::domain::error::AuthAPIError;
+use color_eyre::eyre::Result;
 
 #[derive(Clone, Debug, PartialEq, Hash, Eq)]
 pub struct Password(String);
 
 impl Password {
-    pub fn parse(pass: String) -> Result<Self, AuthAPIError> {
+    pub fn parse(pass: String) -> Result<Self> {
         if validate_length(&pass, Some(8), None, None) {
             Ok(Self(pass))
         } else {
-            Err(AuthAPIError::InvalidCredentials)
+            Err(AuthAPIError::InvalidCredentials.into())
         }
     }
 

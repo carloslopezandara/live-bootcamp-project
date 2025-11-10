@@ -4,6 +4,7 @@
 // Make sure to add unit tests!
 
 use std::{collections::HashSet};
+use color_eyre::eyre;
 
 use crate::domain::{BannedTokenStore, BannedTokenStoreError};
 
@@ -16,7 +17,7 @@ pub struct HashsetBannedTokenStore {
 impl BannedTokenStore for HashsetBannedTokenStore {
     async fn store_token(&mut self, token: String) -> Result<(), BannedTokenStoreError> {
         match self.tokens.get(&token) {
-            Some(_) => return Err(BannedTokenStoreError::TokenAlreadyExists), 
+            Some(_) => return Err(BannedTokenStoreError::UnexpectedError(eyre::eyre!("Token already exists"))), 
             None => {
                 self.tokens.insert(token);
             },
@@ -43,7 +44,7 @@ async fn test_banned_token_store() {
     assert!(store.store_token(token.clone()).await.is_ok());
 
     // Test storing the same token again
-    assert_eq!(store.store_token(token.clone()).await, Err(BannedTokenStoreError::TokenAlreadyExists));
+    assert!(store.store_token(token.clone()).await.is_err());
 
     // Test checking if the token is banned
     assert!(store.is_token_banned(&token).await.unwrap());

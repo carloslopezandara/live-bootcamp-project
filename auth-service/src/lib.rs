@@ -11,7 +11,7 @@ use redis::{Client, RedisResult};
 use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, postgres::PgPoolOptions};
 use tower_http::{cors::CorsLayer, services::ServeDir, trace::TraceLayer};
-use routes::{signup, /*login, logout, verify_2fa,*/ verify_token};
+use routes::{signup, login, logout, verify_2fa, verify_token};
 use app_state::AppState;
 
 use crate::utils::tracing::{make_span_with_request_id, on_request, on_response};
@@ -49,9 +49,9 @@ impl Application {
         let router = Router::new()
             .nest_service("/", ServeDir::new("assets"))
             .route("/signup", post(signup))
-            //.route("/login", post(login))
-            //.route("/verify-2fa", post(verify_2fa))
-            //.route("/logout", post(logout))
+            .route("/login", post(login))
+            .route("/verify-2fa", post(verify_2fa))
+            .route("/logout", post(logout))
             .route("/verify-token", post(verify_token))
             .with_state(app_state)
             .layer(cors)
@@ -85,7 +85,7 @@ pub struct ErrorResponse {
 
 impl IntoResponse for AuthAPIError {
     fn into_response(self) -> Response {
-        //log_error_chain(&self); // New!
+        log_error_chain(&self); // New!
         let (status, error_message) = match self {
             AuthAPIError::UserAlreadyExists => (StatusCode::CONFLICT, "User already exists"),
             AuthAPIError::InvalidCredentials => (StatusCode::BAD_REQUEST, "Invalid credentials"),
@@ -113,16 +113,16 @@ pub fn get_redis_client(redis_hostname: String) -> RedisResult<Client> {
     redis::Client::open(redis_url)
 }
 
-// fn log_error_chain(e: &(dyn Error + 'static)) {
-//     let separator =
-//         "\n-----------------------------------------------------------------------------------\n";
-//     let mut report = format!("{}{:?}\n", separator, e);
-//     let mut current = e.source();
-//     while let Some(cause) = current {
-//         let str = format!("Caused by:\n\n{:?}", cause);
-//         report = format!("{}\n{}", report, str);
-//         current = cause.source();
-//     }
-//     report = format!("{}\n{}", report, separator);
-//     tracing::error!("{}", report);
-// }
+fn log_error_chain(e: &(dyn Error + 'static)) {
+    let separator =
+        "\n-----------------------------------------------------------------------------------\n";
+    let mut report = format!("{}{:?}\n", separator, e);
+    let mut current = e.source();
+    while let Some(cause) = current {
+        let str = format!("Caused by:\n\n{:?}", cause);
+        report = format!("{}\n{}", report, str);
+        current = cause.source();
+    }
+    report = format!("{}\n{}", report, separator);
+    tracing::error!("{}", report);
+}

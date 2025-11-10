@@ -1,4 +1,5 @@
 use crate::domain::{Email, EmailClient};
+use color_eyre::eyre::Result;
 
 pub struct MockEmailClient;
 
@@ -9,13 +10,13 @@ impl EmailClient for MockEmailClient {
         recipient: &Email,
         subject: &str,
         content: &str,
-    ) -> Result<(), String> {
-        // Our mock email client will simply log the recipient, subject, and content to standard output
-        println!(
-            "Sending email to {} with subject: {} and content: {}",
-            recipient.as_ref(),
-            subject,
-            content
+    ) -> Result<()> {
+        // Our mock email client will log the recipient, subject, and content using tracing
+        tracing::debug!(
+            recipient = %recipient.as_ref(),
+            subject = %subject,
+            content = %content,
+            "Sending email"
         );
 
         Ok(())
