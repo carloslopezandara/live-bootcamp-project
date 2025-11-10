@@ -112,9 +112,8 @@ impl Default for TwoFACode {
         // Use the `rand` crate to generate a random 2FA code.
         // The code should be 6 digits (ex: 834629)
         let mut rng = rand::thread_rng();
-        let code: String = (0..6)
-            .map(|_| rng.gen_range(0..10).to_string())
-            .collect();
+        // Generate a number between 100000 and 999999 to ensure valid 2FA code
+        let code = rng.gen_range(100_000..=999_999).to_string();
         TwoFACode(code)
     }
 }

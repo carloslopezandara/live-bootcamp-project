@@ -1,21 +1,34 @@
-use validator::validate_length;
-use crate::domain::error::AuthAPIError;
-use color_eyre::eyre::Result;
+use color_eyre::eyre::{eyre, Result};
+use secrecy::{ExposeSecret, Secret};
 
-#[derive(Clone, Debug, PartialEq, Hash, Eq)]
-pub struct Password(String);
+#[derive(Debug, Clone)] // Updated!
+pub struct Password(Secret<String>); // Updated!
 
 impl Password {
-    pub fn parse(pass: String) -> Result<Self> {
-        if validate_length(&pass, Some(8), None, None) {
-            Ok(Self(pass))
+    pub fn parse(s: Secret<String>) -> Result<Password> { // Updated!
+        if validate_password(&s) {
+            Ok(Self(s))
         } else {
-            Err(AuthAPIError::InvalidCredentials.into())
+            Err(eyre!("Failed to parse string to a Password type"))
         }
     }
+}
 
-    pub fn as_ref(&self) -> &str {
+fn validate_password(s: &Secret<String>) -> bool { // Updated!
+    s.expose_secret().len() >= 8
+}
+
+impl AsRef<Secret<String>> for Password { // Updated!
+    fn as_ref(&self) -> &Secret<String> {
         &self.0
+    }
+}
+
+impl PartialEq for Password { // New!
+    fn eq(&self, other: &Self) -> bool {
+        // We can use the expose_secret method to expose the secret in a
+        // controlled manner when needed!
+        self.0.expose_secret() == other.0.expose_secret() // Updated!
     }
 }
 
@@ -26,54 +39,30 @@ mod tests {
     use fake::faker::internet::en::{Password as FakePassword};
     use fake::Fake;
     extern crate quickcheck;
-    use quickcheck::QuickCheck;
+    use secrecy::Secret; // New!
 
-    #[tokio::test]
-    async fn test_password_parse_valid() {
-        let pass_str: String = FakePassword(8..18).fake();
-        let pass = Password::parse(pass_str.clone());
-        assert!(pass.is_ok());
-        assert_eq!(pass.unwrap().as_ref(), pass_str);
+    #[test]
+    fn empty_string_is_rejected() {
+        let password = Secret::new("".to_string()); // Updated!
+        assert!(Password::parse(password).is_err());
+    }
+    #[test]
+    fn string_less_than_8_characters_is_rejected() {
+        let password = Secret::new("1234567".to_string()); // Updated!
+        assert!(Password::parse(password).is_err());
     }
 
-    fn prop_password_parse_valid(pass_str: String) -> bool {
-        if validate_length(&pass_str, Some(8), None, None) {
-            let pass = Password::parse(pass_str.clone());
-            pass.is_ok() && pass.unwrap().as_ref() == pass_str
-        } else {
-            true // Skip invalid passwords
+    #[derive(Debug, Clone)]
+    struct ValidPasswordFixture(pub Secret<String>); // Updated!
+
+    impl quickcheck::Arbitrary for ValidPasswordFixture {
+        fn arbitrary<G: quickcheck::Gen>(g: &mut G) -> Self {
+            let password = FakePassword(8..30).fake_with_rng(g);
+            Self(Secret::new(password)) // Updated!
         }
     }
-
-    #[tokio::test]
-    async fn test_password_parse_valid_quickcheck() {
-    QuickCheck::new()
-        .tests(20)
-        .quickcheck(prop_password_parse_valid as fn(String) -> bool);
-    }
-
-    #[tokio::test]
-    async fn test_password_parse_invalid() {
-        let pass_str = "short".to_string();
-        let pass = Password::parse(pass_str);
-        assert!(pass.is_err());
-        //assert_eq!(pass.err().unwrap(), AuthAPIError::InvalidCredentials);
-    }
-
-    // quickcheck test
-    fn prop_password_parse_invalid(pass_str: String) -> bool {
-        if !validate_length(&pass_str, Some(8), None, None) {
-            let pass = Password::parse(pass_str);
-            pass.is_err() //&& pass.err().unwrap() == AuthAPIError::InvalidCredentials
-        } else {
-            true // Skip valid passwords
-        }
-    }
-
-    #[tokio::test]
-    async fn test_password_parse_invalid_quickcheck() {
-    QuickCheck::new()
-        .tests(20)
-        .quickcheck(prop_password_parse_invalid as fn(String) -> bool);
+    #[quickcheck_macros::quickcheck]
+    fn valid_passwords_are_parsed_successfully(valid_password: ValidPasswordFixture) -> bool {
+        Password::parse(valid_password.0).is_ok()
     }
 }

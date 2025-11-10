@@ -1,4 +1,5 @@
 use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
+use secrecy::{ExposeSecret, Secret};
 use serde::{Deserialize, Serialize};
 use crate::{app_state::AppState, domain::{AuthAPIError,User,Email, Password}};
 
@@ -7,13 +8,13 @@ pub async fn signup(
     State(state): State<AppState>,
     Json(request): Json<SignupRequest>,
 ) -> Result<impl IntoResponse, AuthAPIError> {
-    let email = request.email;
+    let email = request.email.expose_secret();
     let password = request.password;
 
     // Update signup route to replace validation logic with calls to Email::parse and Password::parse
 
-    let email = Email::parse(email.clone()).map_err(|e| AuthAPIError::UnexpectedError(e.into()))?;
-    let password = Password::parse(password.clone()).map_err(|e| AuthAPIError::UnexpectedError(e.into()))?;
+    let email = Email::parse(email.clone()).map_err(|_| AuthAPIError::InvalidCredentials)?;
+    let password = Password::parse(password.clone()).map_err(|_| AuthAPIError::InvalidCredentials)?;
 
     let user = User::new(email, password, request.requires_2fa);
 
@@ -37,8 +38,8 @@ pub async fn signup(
 
 #[derive(Deserialize)]
 pub struct SignupRequest {
-    pub email: String,
-    pub password: String,
+    pub email: Secret<String>,
+    pub password: Secret<String>,
     #[serde(rename = "requires2FA")]
     pub requires_2fa: bool,
 }

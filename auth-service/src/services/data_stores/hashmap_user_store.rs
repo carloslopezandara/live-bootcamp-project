@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-
 use crate::domain::{User, UserStore, UserStoreError, Email, Password};
 
 // a `HashMap`` of email `String`s mapped to `User` objects.
@@ -48,13 +47,14 @@ impl UserStore for HashmapUserStore {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use secrecy::Secret;
 
     #[tokio::test]
     async fn test_add_user() {
         let mut store = HashmapUserStore::default();
         let user = User {
             email: Email::parse("test@gmail.com".to_string()).unwrap(),
-            password:Password::parse("password".to_string()).unwrap(),
+            password:Password::parse(Secret::new("password".to_string())).unwrap(),
             requires_2fa: false,
         };
         assert_eq!(store.add_user(user.clone()).await, Ok(()));
@@ -66,7 +66,7 @@ mod tests {
         let mut store = HashmapUserStore::default();
         let user = User {
             email: Email::parse("test@gmail.com".to_string()).unwrap(),
-            password:Password::parse("password".to_string()).unwrap(),
+            password:Password::parse(Secret::new("password".to_string())).unwrap(),
             requires_2fa: false,
         };
         assert_eq!(store.get_user(Email::parse("test@gmail.com".to_string()).as_ref().unwrap()).await, Err(UserStoreError::UserNotFound));
@@ -79,12 +79,12 @@ mod tests {
         let mut store = HashmapUserStore::default();
         let user = User {
             email: Email::parse("test@gmail.com".to_string()).unwrap(),
-            password:Password::parse("password".to_string()).unwrap(),
+            password:Password::parse(Secret::new("password".to_string())).unwrap(),
             requires_2fa: false,
         };
-        assert_eq!(store.validate_user(Email::parse("test@gmail.com".to_string()).as_ref().unwrap(), Password::parse("password".to_string()).as_ref().unwrap()).await, Err(UserStoreError::UserNotFound));
+        assert_eq!(store.validate_user(Email::parse("test@gmail.com".to_string()).as_ref().unwrap(), Password::parse(Secret::new("password".to_string())).as_ref().unwrap()).await, Err(UserStoreError::UserNotFound));
         store.add_user(user.clone()).await.unwrap();
-        assert_eq!(store.validate_user(Email::parse("test@gmail.com".to_string()).as_ref().unwrap(), Password::parse("password".to_string()).as_ref().unwrap()).await, Ok(()));
-        assert_eq!(store.validate_user(Email::parse("test@gmail.com".to_string()).as_ref().unwrap(), Password::parse("wrongpassword".to_string()).as_ref().unwrap()).await, Err(UserStoreError::InvalidCredentials));
+        assert_eq!(store.validate_user(Email::parse("test@gmail.com".to_string()).as_ref().unwrap(), Password::parse(Secret::new("password".to_string())).as_ref().unwrap()).await, Ok(()));
+        assert_eq!(store.validate_user(Email::parse("test@gmail.com".to_string()).as_ref().unwrap(), Password::parse(Secret::new("wrongpassword".to_string())).as_ref().unwrap()).await, Err(UserStoreError::InvalidCredentials));
     }
 }

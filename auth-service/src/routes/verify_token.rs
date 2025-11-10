@@ -8,15 +8,15 @@ pub async fn verify_token(
     Json(request): Json<VerifytokenRequest>,) -> Result<impl IntoResponse, AuthAPIError>  { 
     let token = request.token;
 
-    // Propagate the error as UnexpectedError to maintain SpanTrace
+    // Check token validity and treat authentication failures as InvalidToken
     match validate_token(&token, state.banned_token_store.clone()).await {
         Ok(_claims) => {
             let response = Json(VerifytokenResponse { valid: true });
             Ok((StatusCode::OK, response))
         },
-        Err(e) => {
-            // Convert the eyre::Report to AuthAPIError::UnexpectedError to preserve SpanTrace
-            Err(AuthAPIError::UnexpectedError(e))
+        Err(_) => {
+            // Token is invalid, expired, or banned - return InvalidToken
+            Err(AuthAPIError::InvalidToken)
         }
     }
 }

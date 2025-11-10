@@ -1,5 +1,6 @@
 use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
 use axum_extra::extract::CookieJar;
+use secrecy::Secret;
 use serde::{Deserialize, Serialize};
 use crate::domain::{LoginAttemptId, TwoFACode};
 
@@ -16,11 +17,11 @@ pub async fn login(
     Json(request): Json<LoginRequest>,
 ) -> (CookieJar, Result<impl IntoResponse, AuthAPIError>) {
     let email = match Email::parse(request.email.clone()) {
-        Err(error) => return (jar, Err(AuthAPIError::UnexpectedError(error))),
+        Err(_) => return (jar, Err(AuthAPIError::InvalidCredentials)),
         Ok(email) => email,
     };
     let password = match Password::parse(request.password.clone()){
-        Err(error) => return (jar, Err(AuthAPIError::UnexpectedError(error))),
+        Err(_) => return (jar, Err(AuthAPIError::InvalidCredentials)),
         Ok(password) => password,
     };    
     let user_store = state.user_store.read().await;
@@ -45,7 +46,7 @@ pub async fn login(
 #[derive(Deserialize)]
 pub struct LoginRequest {
     pub email: String,
-    pub password: String,
+    pub password: Secret<String>,
 }
 
 // The login route can return 2 possible success responses.
