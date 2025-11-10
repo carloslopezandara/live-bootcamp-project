@@ -1,5 +1,6 @@
 use crate::domain::{Email, EmailClient};
 use color_eyre::eyre::Result;
+use secrecy::ExposeSecret;
 
 pub struct MockEmailClient;
 
@@ -13,7 +14,7 @@ impl EmailClient for MockEmailClient {
     ) -> Result<()> {
         // Our mock email client will log the recipient, subject, and content using tracing
         tracing::debug!(
-            recipient = %recipient.as_ref(),
+            recipient = %recipient.as_ref().expose_secret(),
             subject = %subject,
             content = %content,
             "Sending email"

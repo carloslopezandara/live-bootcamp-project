@@ -1,4 +1,5 @@
 use std::{str::FromStr, sync::Arc};
+use secrecy::{Secret, ExposeSecret};
 use sqlx::{Connection, Executor, PgConnection, PgPool, postgres::{PgConnectOptions, PgPoolOptions}};
 use tokio::sync::RwLock;
 use auth_service::{Application, app_state::{AppState, BannedTokenStoreType, TwoFACodeStoreType}, get_postgres_pool, get_redis_client, services::data_stores::{MockEmailClient, PostgresUserStore, RedisBannedTokenStore, RedisTwoFACodeStore, }, utils::constants::{DATABASE_URL, REDIS_HOST_NAME, test}};
@@ -141,7 +142,7 @@ pub fn get_random_email() -> String {
 }
 
 async fn configure_postgresql() -> PgPool {
-    let postgresql_conn_url = DATABASE_URL.to_owned();
+    let postgresql_conn_url = DATABASE_URL.expose_secret().to_owned();
 
     // We are creating a new database for each test case, and we need to ensure each database has a unique name!
     let db_name = Uuid::new_v4().to_string();
@@ -151,7 +152,7 @@ async fn configure_postgresql() -> PgPool {
     let postgresql_conn_url_with_db = format!("{}/{}", postgresql_conn_url, db_name);
 
     // Create a new connection pool and return it
-    get_postgres_pool(&postgresql_conn_url_with_db)
+    get_postgres_pool(&Secret::new(postgresql_conn_url_with_db))
         .await
         .expect("Failed to create Postgres connection pool!")
 }
@@ -186,7 +187,7 @@ async fn configure_database(db_conn_string: &str, db_name: &str) {
 }
 
 async fn delete_database(db_name: &str) {
-    let postgresql_conn_url: String = DATABASE_URL.to_owned();
+    let postgresql_conn_url = DATABASE_URL.expose_secret().to_owned();
 
     let connection_options = PgConnectOptions::from_str(&postgresql_conn_url)
         .expect("Failed to parse PostgreSQL connection string");

@@ -1,5 +1,6 @@
 use color_eyre::eyre::{eyre, Context, Report, Result};
 use rand::Rng;
+use secrecy::Secret;
 use thiserror::Error;
 use uuid::Uuid;
 use crate::domain::{Email, Password};
@@ -24,9 +25,9 @@ pub trait UserStore {
 
 #[async_trait::async_trait]
 pub trait BannedTokenStore {
-    async fn store_token(&mut self, token: String) -> Result<(), BannedTokenStoreError>;
+    async fn store_token(&mut self, token: Secret<String>) -> Result<(), BannedTokenStoreError>;
 
-    async fn is_token_banned(&self, token: &String) -> Result<bool, BannedTokenStoreError>;
+    async fn is_token_banned(&self, token: &Secret<String>) -> Result<bool, BannedTokenStoreError>;
 
     fn as_ref(&self) -> &dyn BannedTokenStore;
 }
@@ -69,38 +70,38 @@ impl PartialEq for TwoFACodeStoreError {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct LoginAttemptId(String);
+#[derive(Debug, Clone)]
+pub struct LoginAttemptId(Secret<String>);
 
 impl LoginAttemptId {
     pub fn parse(id: String) -> Result<Self> { // Updated!
         let parsed_id = uuid::Uuid::parse_str(&id).wrap_err("Invalid login attempt id")?; // Updated!
-        Ok(Self(parsed_id.to_string()))
+        Ok(Self(Secret::new(parsed_id.to_string())))
     }
 }
 
 impl Default for LoginAttemptId {
     fn default() -> Self {
         // Use the `uuid` crate to generate a random version 4 UUID
-        LoginAttemptId(Uuid::new_v4().to_string())
+        LoginAttemptId(Secret::new(Uuid::new_v4().to_string()))
     }
 }
 
-impl AsRef<str> for LoginAttemptId {
-    fn as_ref(&self) -> &str {
+impl AsRef<Secret<String>> for LoginAttemptId {
+    fn as_ref(&self) -> &Secret<String> {
         &self.0
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct TwoFACode(String);
+#[derive(Clone, Debug)]
+pub struct TwoFACode(Secret<String>);
 
 impl TwoFACode {
     pub fn parse(code: String) -> Result<Self> { // Updated!
         let code_as_u32 = code.parse::<u32>().wrap_err("Invalid 2FA code")?; // Updated!
 
         if (100_000..=999_999).contains(&code_as_u32) {
-            Ok(Self(code))
+            Ok(Self(Secret::new(code)))
         } else {
             Err(eyre!("Invalid 2FA code")) // Updated!
         }
@@ -114,12 +115,12 @@ impl Default for TwoFACode {
         let mut rng = rand::thread_rng();
         // Generate a number between 100000 and 999999 to ensure valid 2FA code
         let code = rng.gen_range(100_000..=999_999).to_string();
-        TwoFACode(code)
+        TwoFACode(Secret::new(code))
     }
 }
 
-impl AsRef<str> for TwoFACode {
-    fn as_ref(&self) -> &str {
+impl AsRef<Secret<String>> for TwoFACode {
+    fn as_ref(&self) -> &Secret<String> {
         &self.0
     }
 }

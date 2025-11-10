@@ -13,7 +13,7 @@ pub async fn signup(
 
     // Update signup route to replace validation logic with calls to Email::parse and Password::parse
 
-    let email = Email::parse(email.clone()).map_err(|_| AuthAPIError::InvalidCredentials)?;
+    let email = Email::parse(Secret::new(email.clone())).map_err(|_| AuthAPIError::InvalidCredentials)?;
     let password = Password::parse(password.clone()).map_err(|_| AuthAPIError::InvalidCredentials)?;
 
     let user = User::new(email, password, request.requires_2fa);

@@ -1,16 +1,17 @@
 use auth_service::{domain::{Email}, routes::TwoFactorAuthResponse, utils::constants::JWT_COOKIE_NAME,};
 use test_macros::auto_cleanup;
 use crate::helpers::{get_random_email, TestApp};
+use secrecy::{Secret, ExposeSecret};
 
 #[auto_cleanup]
 #[tokio::test]
 async fn should_return_422_if_malformed_input() {
     let mut app = TestApp::new().await;
 
-    let random_email = Email::parse(get_random_email()).unwrap();
+    let random_email = Email::parse(Secret::new(get_random_email())).unwrap();
 
     let signup_body = serde_json::json!({
-        "email": random_email.as_ref(),
+        "email": random_email.as_ref().expose_secret(),
         "password": "password123",
         "requires2FA": true
     });
@@ -20,7 +21,7 @@ async fn should_return_422_if_malformed_input() {
     assert_eq!(response.status().as_u16(), 201);
 
     let login_body = serde_json::json!({
-        "email": random_email.as_ref(),
+        "email": random_email.as_ref().expose_secret(),
         "password": "password123",
     });
 
@@ -36,10 +37,10 @@ async fn should_return_422_if_malformed_input() {
     assert_eq!(json_body.message, "2FA required".to_owned());
 
     let (login_attempt_id, _) = app.two_fa_code_store.read().await.get_code(&random_email).await.unwrap();
-    assert_eq!(login_attempt_id.as_ref(), json_body.login_attempt_id);
+    assert_eq!(login_attempt_id.as_ref().expose_secret(), &json_body.login_attempt_id);
 
     let verify_2fa_body = serde_json::json!({
-        "email": random_email.as_ref(),
+        "email": random_email.as_ref().expose_secret(),
         "loginAttemptId": json_body.login_attempt_id,
         "code": "invalid_code"
     });
@@ -51,11 +52,11 @@ async fn should_return_422_if_malformed_input() {
 #[tokio::test]
 async fn should_return_400_if_invalid_input() {
     let mut app = TestApp::new().await;
-    
-    let random_email = Email::parse(get_random_email()).unwrap();
+
+    let random_email = Email::parse(Secret::new(get_random_email())).unwrap();
 
     let signup_body = serde_json::json!({
-        "email": random_email.as_ref(),
+        "email": random_email.as_ref().expose_secret(),
         "password": "password123",
         "requires2FA": true
     });
@@ -65,7 +66,7 @@ async fn should_return_400_if_invalid_input() {
     assert_eq!(response.status().as_u16(), 201);
 
     let login_body = serde_json::json!({
-        "email": random_email.as_ref(),
+        "email": random_email.as_ref().expose_secret(),
         "password": "password123",
     });
 
@@ -81,11 +82,11 @@ async fn should_return_400_if_invalid_input() {
     assert_eq!(json_body.message, "2FA required".to_owned());
 
     let (login_attempt_id, _) = app.two_fa_code_store.read().await.get_code(&random_email).await.unwrap();
-    assert_eq!(login_attempt_id.as_ref(), json_body.login_attempt_id);
+    assert_eq!(login_attempt_id.as_ref().expose_secret(), &json_body.login_attempt_id);
 
     let verify_2fa_body = serde_json::json!({
-        "email": random_email.as_ref(),
-        "loginAttemptId": login_attempt_id.as_ref(),
+        "email": random_email.as_ref().expose_secret(),
+        "loginAttemptId": login_attempt_id.as_ref().expose_secret(),
         "2FACode": "InvalidCode123"
     });
 
@@ -98,11 +99,11 @@ async fn should_return_400_if_invalid_input() {
 async fn should_return_401_if_incorrect_credentials() {
     let mut app = TestApp::new().await;
     // Call verify_2fa with an email/loginAttemptId/2FACode combo that doesn't exist in the store. This should return a 401.
-    
-    let random_email = Email::parse(get_random_email()).unwrap();
+
+    let random_email = Email::parse(Secret::new(get_random_email())).unwrap();
 
     let signup_body = serde_json::json!({
-        "email": random_email.as_ref(),
+        "email": random_email.as_ref().expose_secret(),
         "password": "password123",
         "requires2FA": true
     });
@@ -112,7 +113,7 @@ async fn should_return_401_if_incorrect_credentials() {
     assert_eq!(response.status().as_u16(), 201);
 
     let login_body = serde_json::json!({
-        "email": random_email.as_ref(),
+        "email": random_email.as_ref().expose_secret(),
         "password": "password123",
     });
 
@@ -128,11 +129,11 @@ async fn should_return_401_if_incorrect_credentials() {
     assert_eq!(json_body.message, "2FA required".to_owned());
 
     let (login_attempt_id, _) = app.two_fa_code_store.read().await.get_code(&random_email).await.unwrap();
-    assert_eq!(login_attempt_id.as_ref(), json_body.login_attempt_id);
+    assert_eq!(login_attempt_id.as_ref().expose_secret(), &json_body.login_attempt_id);
 
     let verify_2fa_body = serde_json::json!({
-        "email": random_email.as_ref(),
-        "loginAttemptId": login_attempt_id.as_ref(),
+        "email": random_email.as_ref().expose_secret(),
+        "loginAttemptId": login_attempt_id.as_ref().expose_secret(),
         "2FACode": "123456"
     });
 
@@ -146,10 +147,10 @@ async fn should_return_401_if_old_code() {
     // Call login twice. Then, attempt to call verify-fa with the 2FA code from the first login requet. This should fail.
     let mut app = TestApp::new().await;
 
-    let random_email = Email::parse(get_random_email()).unwrap();
+    let random_email = Email::parse(Secret::new(get_random_email())).unwrap();
 
     let signup_body = serde_json::json!({
-        "email": random_email.as_ref(),
+        "email": random_email.as_ref().expose_secret(),
         "password": "password123",
         "requires2FA": true
     });
@@ -159,7 +160,7 @@ async fn should_return_401_if_old_code() {
     assert_eq!(response.status().as_u16(), 201);
 
     let login_body = serde_json::json!({
-        "email": random_email.as_ref(),
+        "email": random_email.as_ref().expose_secret(),
         "password": "password123",
     });
 
@@ -175,20 +176,20 @@ async fn should_return_401_if_old_code() {
     assert_eq!(json_body.message, "2FA required".to_owned());
 
     let (login_attempt_id, two_fa_code) = app.two_fa_code_store.read().await.get_code(&random_email).await.unwrap();
-    assert_eq!(login_attempt_id.as_ref(), json_body.login_attempt_id);
+    assert_eq!(login_attempt_id.as_ref().expose_secret(), &json_body.login_attempt_id);
 
     let verify_2fa_body = serde_json::json!({
-        "email": random_email.as_ref(),
-        "loginAttemptId": login_attempt_id.as_ref(),
-        "2FACode": two_fa_code.as_ref()
+        "email": random_email.as_ref().expose_secret(),
+        "loginAttemptId": login_attempt_id.as_ref().expose_secret(),
+        "2FACode": two_fa_code.as_ref().expose_secret()
     });
 
     let response = app.post_verify_2fa(&verify_2fa_body).await;
     assert_eq!(response.status().as_u16(), 200);
 
     let verify_2fa_body = serde_json::json!({
-        "email": random_email.as_ref(),
-        "loginAttemptId": login_attempt_id.as_ref(),
+        "email": random_email.as_ref().expose_secret(),
+        "loginAttemptId": login_attempt_id.as_ref().expose_secret(),
         "2FACode": "123456"
     });
 
@@ -200,16 +201,16 @@ async fn should_return_401_if_old_code() {
 #[tokio::test]
 async fn should_return_200_if_correct_code() {
     let mut app = TestApp::new().await;
-    let random_email = Email::parse(get_random_email()).unwrap();
+    let random_email = Email::parse(Secret::new(get_random_email())).unwrap();
     let signup_body = serde_json::json!({
-        "email": random_email.as_ref(),
+        "email": random_email.as_ref().expose_secret(),
         "password": "password123",
         "requires2FA": true
     });
     let response = app.post_signup(&signup_body).await;
     assert_eq!(response.status().as_u16(), 201);
     let login_body = serde_json::json!({
-        "email": random_email.as_ref(),
+        "email": random_email.as_ref().expose_secret(),
         "password": "password123",
     });
     let response = app.post_login(&login_body).await;
@@ -220,11 +221,11 @@ async fn should_return_200_if_correct_code() {
         .expect("Could not deserialize response body to TwoFactorAuthResponse");
     assert_eq!(json_body.message, "2FA required".to_owned());
     let (login_attempt_id, two_fa_code) = app.two_fa_code_store.read().await.get_code(&random_email).await.unwrap();
-    assert_eq!(login_attempt_id.as_ref(), json_body.login_attempt_id);
+    assert_eq!(login_attempt_id.as_ref().expose_secret(), &json_body.login_attempt_id);
     let verify_2fa_body = serde_json::json!({
-        "email": random_email.as_ref(),
-        "loginAttemptId": login_attempt_id.as_ref(),
-        "2FACode": two_fa_code.as_ref()
+        "email": random_email.as_ref().expose_secret(),
+        "loginAttemptId": login_attempt_id.as_ref().expose_secret(),
+        "2FACode": two_fa_code.as_ref().expose_secret()
     });
     let response = app.post_verify_2fa(&verify_2fa_body).await;
     assert_eq!(response.status().as_u16(), 200);
@@ -242,16 +243,16 @@ async fn should_return_200_if_correct_code() {
 #[tokio::test]
 async fn should_return_401_if_same_code_twice() {    
     let mut app = TestApp::new().await;
-    let random_email = Email::parse(get_random_email()).unwrap();
+    let random_email = Email::parse(Secret::new(get_random_email())).unwrap();
     let signup_body = serde_json::json!({
-        "email": random_email.as_ref(),
+        "email": random_email.as_ref().expose_secret(),
         "password": "password123",
         "requires2FA": true
     });
     let response = app.post_signup(&signup_body).await;
     assert_eq!(response.status().as_u16(), 201);
     let login_body = serde_json::json!({
-        "email": random_email.as_ref(),
+        "email": random_email.as_ref().expose_secret(),
         "password": "password123",
     });
     let response = app.post_login(&login_body).await;
@@ -262,11 +263,11 @@ async fn should_return_401_if_same_code_twice() {
         .expect("Could not deserialize response body to TwoFactorAuthResponse");
     assert_eq!(json_body.message, "2FA required".to_owned());
     let (login_attempt_id, two_fa_code) = app.two_fa_code_store.read().await.get_code(&random_email).await.unwrap();
-    assert_eq!(login_attempt_id.as_ref(), json_body.login_attempt_id);
+    assert_eq!(login_attempt_id.as_ref().expose_secret(), &json_body.login_attempt_id);
     let verify_2fa_body = serde_json::json!({
-        "email": random_email.as_ref(),
-        "loginAttemptId": login_attempt_id.as_ref(),
-        "2FACode": two_fa_code.as_ref()
+        "email": random_email.as_ref().expose_secret(),
+        "loginAttemptId": login_attempt_id.as_ref().expose_secret(),
+        "2FACode": two_fa_code.as_ref().expose_secret()
     });
     let response = app.post_verify_2fa(&verify_2fa_body).await;
     assert_eq!(response.status().as_u16(), 200);

@@ -1,6 +1,6 @@
 use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
 use axum_extra::extract::CookieJar;
-use secrecy::Secret;
+use secrecy::{Secret, ExposeSecret};
 use serde::{Deserialize, Serialize};
 use crate::domain::{LoginAttemptId, TwoFACode};
 
@@ -16,7 +16,7 @@ pub async fn login(
     jar: CookieJar, // New!
     Json(request): Json<LoginRequest>,
 ) -> (CookieJar, Result<impl IntoResponse, AuthAPIError>) {
-    let email = match Email::parse(request.email.clone()) {
+    let email = match Email::parse(Secret::new(request.email.clone())) {
         Err(_) => return (jar, Err(AuthAPIError::InvalidCredentials)),
         Ok(email) => email,
     };
@@ -91,7 +91,7 @@ async fn handle_2fa(
     }
     
     let email_client = state.email_client.read().await;
-    let body = format!("Here is your 2FA code: {}, don't share it with anyone.", two_fa_code.as_ref());
+    let body = format!("Here is your 2FA code: {}, don't share it with anyone.", two_fa_code.as_ref().expose_secret());
     match email_client.send_email(email, "2FA Code", &body).await {
         Err(e) => return (jar, Err(AuthAPIError::UnexpectedError(e))),
         Ok(_) => (),
@@ -100,7 +100,7 @@ async fn handle_2fa(
     // Finally, we need to return the login attempt ID to the client
     let response = Json(LoginResponse::TwoFactorAuth(TwoFactorAuthResponse {
         message: "2FA required".to_owned(),
-        login_attempt_id: login_attempt_id.as_ref().to_owned(),
+        login_attempt_id: login_attempt_id.as_ref().expose_secret().to_owned(),
     }));
 
     (jar, Ok((StatusCode::PARTIAL_CONTENT, response)))

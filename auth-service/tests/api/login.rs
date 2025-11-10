@@ -1,5 +1,6 @@
 use crate::helpers::{get_random_email, TestApp};
 use auth_service::{ErrorResponse};
+use secrecy::{Secret, ExposeSecret};
 use serde_json;
 use auth_service::{
     domain::{Email},
@@ -91,10 +92,10 @@ async fn should_return_200_if_valid_credentials_and_2fa_disabled() {
 async fn should_return_206_if_valid_credentials_and_2fa_enabled() {
     let mut app = TestApp::new().await;
 
-    let random_email = Email::parse(get_random_email()).unwrap();
+    let random_email = Email::parse(Secret::new(get_random_email())).unwrap();
 
     let signup_body = serde_json::json!({
-        "email": random_email.as_ref(),
+        "email": random_email.as_ref().expose_secret(),
         "password": "password123",
         "requires2FA": true
     });
@@ -104,7 +105,7 @@ async fn should_return_206_if_valid_credentials_and_2fa_enabled() {
     assert_eq!(response.status().as_u16(), 201);
 
     let login_body = serde_json::json!({
-        "email": random_email.as_ref(),
+        "email": random_email.as_ref().expose_secret(),
         "password": "password123",
     });
 
@@ -120,5 +121,5 @@ async fn should_return_206_if_valid_credentials_and_2fa_enabled() {
     assert_eq!(json_body.message, "2FA required".to_owned());
 
     let (login_attempt_id, _) = app.two_fa_code_store.read().await.get_code(&random_email).await.unwrap();
-    assert_eq!(login_attempt_id.as_ref(), json_body.login_attempt_id);
+    assert_eq!(login_attempt_id.as_ref().expose_secret(), &json_body.login_attempt_id);
 }

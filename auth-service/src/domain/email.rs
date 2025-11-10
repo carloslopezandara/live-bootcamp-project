@@ -1,20 +1,45 @@
+use std::hash::Hash; // New!
 use validator::validate_email;
-use crate::domain::error::AuthAPIError;
-use color_eyre::eyre::Result;
+use color_eyre::eyre::{eyre, Result};
+use secrecy::{ExposeSecret, Secret}; // New!
 
-#[derive(Clone, Debug, PartialEq, Hash, Eq)]
-pub struct Email(String);
+#[derive(Debug, Clone)] // Updated!
+pub struct Email(Secret<String>); // Updated!
 
 impl Email {
-    pub fn parse(email: String) -> Result<Self> {
-        if validate_email(&email) {
-            Ok(Self(email))
+    // Updated!
+    pub fn parse(s: Secret<String>) -> Result<Email> {
+        if validate_email(s.expose_secret()) {
+            Ok(Self(s))
         } else {
-            Err(AuthAPIError::InvalidCredentials.into())
+            Err(eyre!(format!(
+                "{} is not a valid email.",
+                s.expose_secret()
+            )))
         }
     }
+}
 
-    pub fn as_ref(&self) -> &str {
+// New!
+impl PartialEq for Email {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.expose_secret() == other.0.expose_secret()
+    }
+}
+
+// New!
+impl Hash for Email {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.0.expose_secret().hash(state);
+    }
+}
+
+// New!
+impl Eq for Email {}
+
+// Updated!
+impl AsRef<Secret<String>> for Email {
+    fn as_ref(&self) -> &Secret<String> {
         &self.0
     }
 }
@@ -26,57 +51,35 @@ mod tests {
     use super::*;
     use fake::faker::internet::en::{SafeEmail};
     use fake::Fake;
-    extern crate quickcheck;
-    use quickcheck::QuickCheck;
 
-    #[tokio::test]
-    async fn test_email_parse_valid() {
-        let email_str: String = SafeEmail().fake();
-        let email = Email::parse(email_str.clone());
-        assert!(email.is_ok());
-        assert_eq!(email.unwrap().as_ref(), email_str);
+    #[test]
+    fn empty_string_is_rejected() {
+        let email = Secret::new("".to_string());
+        assert!(Email::parse(email).is_err());
+    }
+    #[test]
+    fn email_missing_at_symbol_is_rejected() {
+        let email = Secret::new("ursuladomain.com".to_string()); // Updated!
+        assert!(Email::parse(email).is_err());
+    }
+    #[test]
+    fn email_missing_subject_is_rejected() {
+        let email = Secret::new("@domain.com".to_string()); // Updated!
+        assert!(Email::parse(email).is_err());
     }
 
-    // quickcheck test
-    fn prop_email_parse_valid(email_str: String) -> bool {
-        if validate_email(&email_str) {
-            let email = Email::parse(email_str.clone());
-            email.is_ok() && email.unwrap().as_ref() == email_str
-        } else {
-            true // Skip invalid emails
+    #[derive(Debug, Clone)]
+    struct ValidEmailFixture(pub String);
+
+    impl quickcheck::Arbitrary for ValidEmailFixture {
+        fn arbitrary<G: quickcheck::Gen>(g: &mut G) -> Self {
+            let email = SafeEmail().fake_with_rng(g);
+            Self(email)
         }
     }
 
-    #[tokio::test]
-    async fn test_email_parse_valid_quickcheck() {
-    QuickCheck::new()
-        .tests(20)
-        .quickcheck(prop_email_parse_valid as fn(String) -> bool);
+    #[quickcheck_macros::quickcheck]
+    fn valid_emails_are_parsed_successfully(valid_email: ValidEmailFixture) -> bool {
+        Email::parse(Secret::new(valid_email.0)).is_ok() // Updated!
     }
-
-    #[tokio::test]
-    async fn test_email_parse_invalid() {
-        let email_str = "invalid-email-format".to_string();
-        let email = Email::parse(email_str);
-        assert!(email.is_err());
-        //assert_eq!(email.err().unwrap(), AuthAPIError::InvalidCredentials);
-    }
-
-    // quickcheck test
-    fn prop_email_parse_invalid(email_str: String) -> bool {
-        if !validate_email(&email_str) {
-            let email = Email::parse(email_str.clone());
-            email.is_err() //&& email.err().unwrap() == AuthAPIError::InvalidCredentials
-        } else {
-            true // Skip valid emails
-        }
-    }
-
-    #[tokio::test]
-    async fn test_email_parse_invalid_quickcheck() {
-    QuickCheck::new()
-        .tests(20)
-        .quickcheck(prop_email_parse_invalid as fn(String) -> bool);
-    }
-
 }
