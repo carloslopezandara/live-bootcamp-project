@@ -1,5 +1,6 @@
 use auth_service::{domain::{Email}, routes::TwoFactorAuthResponse, utils::constants::JWT_COOKIE_NAME,};
 use test_macros::auto_cleanup;
+use wiremock::{Mock, ResponseTemplate, matchers::{method, path}};
 use crate::helpers::{get_random_email, TestApp};
 use secrecy::{Secret, ExposeSecret};
 
@@ -20,6 +21,13 @@ async fn should_return_422_if_malformed_input() {
 
     assert_eq!(response.status().as_u16(), 201);
 
+    // Define an expectation for the mock server
+    Mock::given(path("/email"))
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(200))
+        .expect(1)
+        .mount(&app.email_server)
+        .await;
     let login_body = serde_json::json!({
         "email": random_email.as_ref().expose_secret(),
         "password": "password123",
@@ -65,6 +73,13 @@ async fn should_return_400_if_invalid_input() {
 
     assert_eq!(response.status().as_u16(), 201);
 
+    // Define an expectation for the mock server
+    Mock::given(path("/email"))
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(200))
+        .expect(1)
+        .mount(&app.email_server)
+        .await;
     let login_body = serde_json::json!({
         "email": random_email.as_ref().expose_secret(),
         "password": "password123",
@@ -112,6 +127,13 @@ async fn should_return_401_if_incorrect_credentials() {
 
     assert_eq!(response.status().as_u16(), 201);
 
+    // Define an expectation for the mock server
+    Mock::given(path("/email"))
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(200))
+        .expect(1)
+        .mount(&app.email_server)
+        .await;
     let login_body = serde_json::json!({
         "email": random_email.as_ref().expose_secret(),
         "password": "password123",
@@ -159,6 +181,14 @@ async fn should_return_401_if_old_code() {
 
     assert_eq!(response.status().as_u16(), 201);
 
+    // Define an expectation for the mock server
+    Mock::given(path("/email"))
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(200))
+        .expect(2)
+        .mount(&app.email_server)
+        .await;
+
     let login_body = serde_json::json!({
         "email": random_email.as_ref().expose_secret(),
         "password": "password123",
@@ -187,12 +217,9 @@ async fn should_return_401_if_old_code() {
     let response = app.post_verify_2fa(&verify_2fa_body).await;
     assert_eq!(response.status().as_u16(), 200);
 
-    let verify_2fa_body = serde_json::json!({
-        "email": random_email.as_ref().expose_secret(),
-        "loginAttemptId": login_attempt_id.as_ref().expose_secret(),
-        "2FACode": "123456"
-    });
-
+    let response = app.post_login(&login_body).await;
+    assert_eq!(response.status().as_u16(), 206);
+    
     let response = app.post_verify_2fa(&verify_2fa_body).await;
     assert_eq!(response.status().as_u16(), 401);
 }
@@ -209,6 +236,14 @@ async fn should_return_200_if_correct_code() {
     });
     let response = app.post_signup(&signup_body).await;
     assert_eq!(response.status().as_u16(), 201);
+
+    Mock::given(path("/email"))
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(200))
+        .expect(1)
+        .mount(&app.email_server)
+        .await;
+    
     let login_body = serde_json::json!({
         "email": random_email.as_ref().expose_secret(),
         "password": "password123",
@@ -255,6 +290,12 @@ async fn should_return_401_if_same_code_twice() {
         "email": random_email.as_ref().expose_secret(),
         "password": "password123",
     });
+    Mock::given(path("/email"))
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(200))
+        .expect(1)
+        .mount(&app.email_server)
+        .await;
     let response = app.post_login(&login_body).await;
     assert_eq!(response.status().as_u16(), 206);
     let json_body = response
