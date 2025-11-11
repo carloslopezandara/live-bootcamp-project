@@ -31,7 +31,7 @@ impl TestApp {
         let user_store = Arc::new(RwLock::new(PostgresUserStore::new(pg_pool)));
         let banned_token_store = Arc::new(RwLock::new(RedisBannedTokenStore::new(Arc::new(RwLock::new(configure_redis())))));
         let two_fa_code_store = Arc::new(RwLock::new(RedisTwoFACodeStore::new(Arc::new(RwLock::new(configure_redis())))));
-        let email_client = Arc::new(RwLock::new(MockEmailClient));
+        let email_client = Arc::new(MockEmailClient);
         let app_state = AppState::new(user_store, banned_token_store.clone(), two_fa_code_store.clone(), email_client.clone());
 
         let app = Application::build(app_state.clone(), test::APP_ADDRESS)

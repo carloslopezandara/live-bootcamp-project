@@ -90,9 +90,8 @@ async fn handle_2fa(
         return (jar, Err(AuthAPIError::UnexpectedError(e.into())));
     }
     
-    let email_client = state.email_client.read().await;
     let body = format!("Here is your 2FA code: {}, don't share it with anyone.", two_fa_code.as_ref().expose_secret());
-    match email_client.send_email(email, "2FA Code", &body).await {
+    match state.email_client.send_email(email, "2FA Code", &body).await {
         Err(e) => return (jar, Err(AuthAPIError::UnexpectedError(e))),
         Ok(_) => (),
     };

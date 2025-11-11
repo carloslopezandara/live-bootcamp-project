@@ -141,7 +141,7 @@ mod tests {
         let user_store = Arc::new(RwLock::new(HashmapUserStore::default()));
         let banned_token_store = Arc::new(RwLock::new(HashsetBannedTokenStore::default()));
         let two_fa_code_store = Arc::new(RwLock::new(HashmapTwoFACodeStore::default()));
-        let email_client = Arc::new(RwLock::new(MockEmailClient));
+        let email_client = Arc::new(MockEmailClient);
         let app_state = AppState { user_store, banned_token_store, two_fa_code_store, email_client };
 
         let result = validate_token(&token, app_state.banned_token_store.clone()).await.unwrap();
@@ -161,7 +161,7 @@ mod tests {
         let user_store = Arc::new(RwLock::new(HashmapUserStore::default()));
         let banned_token_store = Arc::new(RwLock::new(HashsetBannedTokenStore::default()));
         let two_fa_code_store = Arc::new(RwLock::new(HashmapTwoFACodeStore::default()));
-        let email_client = Arc::new(RwLock::new(MockEmailClient));
+        let email_client = Arc::new(MockEmailClient);
         let app_state = AppState { user_store, banned_token_store, two_fa_code_store, email_client };
 
         let result = validate_token(&token, app_state.banned_token_store.clone()).await;
